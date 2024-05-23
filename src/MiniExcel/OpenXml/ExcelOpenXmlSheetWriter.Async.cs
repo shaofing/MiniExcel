@@ -134,7 +134,8 @@ namespace MiniExcelLibs.OpenXml
                 for (var i = 0; i < reader.FieldCount; i++)
                 {
                     var columnName = reader.GetName(i);
-                    var prop = GetColumnInfosFromDynamicConfiguration(columnName);
+                    var columnType = reader.GetFieldType(i);
+                    var prop = GetColumnInfosFromDynamicConfiguration(columnName, columnType, i);
                     props.Add(prop);
                 }
                 maxColumnIndex = props.Count;
@@ -156,6 +157,8 @@ namespace MiniExcelLibs.OpenXml
                     for (int i = 0; i < fieldCount; i++)
                     {
                         var cellValue = reader.GetValue(i);
+                        if (_cellDataGeter != null)
+                            (cellValue, _) = _cellDataGeter(yIndex, xIndex, props[i], cellValue);
                         await WriteCellAsync(writer, yIndex, xIndex, cellValue, props[i]);
                         xIndex++;
                     }
@@ -329,7 +332,8 @@ namespace MiniExcelLibs.OpenXml
                 for (var i = 0; i < value.Columns.Count; i++)
                 {
                     var columnName = value.Columns[i].Caption ?? value.Columns[i].ColumnName;
-                    var prop = GetColumnInfosFromDynamicConfiguration(columnName);
+                    var columnType = value.Columns[i].DataType;
+                    var prop = GetColumnInfosFromDynamicConfiguration(columnName, columnType, i);
                     props.Add(prop);
                 }
 
@@ -359,14 +363,19 @@ namespace MiniExcelLibs.OpenXml
                     for (int j = 0; j < value.Columns.Count; j++)
                     {
                         var cellValue = value.Rows[i][j];
+                        if (_cellDataGeter != null)
+                            (cellValue, _) = _cellDataGeter(yIndex, xIndex, props[j], cellValue);
                         await WriteCellAsync(writer, yIndex, xIndex, cellValue, props[j]);
                         xIndex++;
                     }
                     await writer.WriteAsync($"</x:row>");
                     yIndex++;
                 }
+                await writer.WriteAsync("</x:sheetData>");
+                if (_configuration.AutoFilter)
+                    await writer.WriteAsync($"<x:autoFilter ref=\"{GetDimensionRef(maxRowIndex, maxColumnIndex)}\" />");
+                await writer.WriteAndFlushAsync("</x:worksheet>");
             }
-            await writer.WriteAsync("</x:sheetData></x:worksheet>");
         }
 
         private static async Task WriteColumnsWidthsAsync(MiniExcelAsyncStreamWriter writer, IEnumerable<ExcelColumnInfo> props)
@@ -477,7 +486,8 @@ namespace MiniExcelLibs.OpenXml
                     {
                         cellValue = p.Property.GetValue(v);
                     }
-
+                    if (_cellDataGeter != null)
+                        (cellValue, _) = _cellDataGeter(yIndex, cellIndex, p, cellValue);
                     await WriteCellAsync(writer, yIndex, cellIndex, cellValue, p);
 
                     cellIndex++;

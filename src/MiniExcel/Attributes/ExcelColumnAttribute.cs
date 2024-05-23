@@ -19,6 +19,9 @@ namespace MiniExcelLibs.Attributes
 
         public bool Ignore { get; set; }
 
+        /// <summary>
+        /// Excle列索引顺序，从0开始
+        /// </summary>
         public int Index
         {
             get => _index;

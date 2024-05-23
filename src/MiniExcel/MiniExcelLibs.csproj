@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net45;netstandard2.0;net6.0;</TargetFrameworks>
+		<TargetFrameworks>net45;netstandard2.0;net6.0;net8.0;</TargetFrameworks>
 		<Version>1.32.1</Version>
 	</PropertyGroup>
 	<PropertyGroup>
@@ -53,5 +53,8 @@ Todo : https://github.com/mini-software/MiniExcel/projects/1?fullscreen=true</De
 	</ItemGroup>
 	<ItemGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+	</ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == 'net45'">
+	  <PackageReference Include="System.ValueTuple" Version="4.5.0" />
 	</ItemGroup>
 </Project>

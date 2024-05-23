@@ -40,6 +40,15 @@
                     throw new NotSupportedException($"Please Issue for me");
             }
         }
+
+        internal static IExcelWriter GetXLSXProvider(Stream stream, object value, string sheetName, IConfiguration configuration, bool printHeader, CellDataGeterDelegate cellDataGeter = null)
+        {
+            if (string.IsNullOrEmpty(sheetName))
+                throw new InvalidDataException("Sheet name can not be empty or null");
+            return new ExcelOpenXmlSheetWriter(stream, value, sheetName, configuration, printHeader, cellDataGeter);
+        }
+
+
     }
 
     internal class ExcelTemplateFactory

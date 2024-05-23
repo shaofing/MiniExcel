@@ -9,7 +9,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using static MiniExcelLibs.Utils.ImageHelper;
 
 namespace MiniExcelLibs.OpenXml
@@ -51,7 +50,10 @@ namespace MiniExcelLibs.OpenXml
         private readonly List<FileDto> _files = new List<FileDto>();
         private int currentSheetIndex = 0;
 
-        public ExcelOpenXmlSheetWriter(Stream stream, object value, string sheetName, IConfiguration configuration, bool printHeader)
+        private readonly CellDataGeterDelegate _cellDataGeter;
+
+
+        public ExcelOpenXmlSheetWriter(Stream stream, object value, string sheetName, IConfiguration configuration, bool printHeader, CellDataGeterDelegate cellDataGeter = null)
         {
             this._stream = stream;
             // Why ZipArchiveMode.Update not ZipArchiveMode.Create?
@@ -63,6 +65,7 @@ namespace MiniExcelLibs.OpenXml
                 this._archive = new MiniExcelZipArchive(_stream, ZipArchiveMode.Create, true, _utf8WithBom);
             this._printHeader = printHeader;
             this._value = value;
+            _cellDataGeter = cellDataGeter;
             var defaultSheetInfo = GetSheetInfos(sheetName);
             _sheets.Add(defaultSheetInfo.ToDto(1)); //TODO:remove
         }
@@ -360,6 +363,8 @@ namespace MiniExcelLibs.OpenXml
                     {
                         cellValue = columnInfo.Property.GetValue(v);
                     }
+                    if (_cellDataGeter != null)
+                        (cellValue, _) = _cellDataGeter(yIndex, cellIndex, columnInfo, cellValue);
 
                     WriteCell(writer, yIndex, cellIndex, cellValue, columnInfo);
 
@@ -603,7 +608,8 @@ namespace MiniExcelLibs.OpenXml
                 for (var i = 0; i < value.Columns.Count; i++)
                 {
                     var columnName = value.Columns[i].Caption ?? value.Columns[i].ColumnName;
-                    var prop = GetColumnInfosFromDynamicConfiguration(columnName);
+                    var columnType = value.Columns[i].DataType;
+                    var prop = GetColumnInfosFromDynamicConfiguration(columnName, columnType, i);
                     props.Add(prop);
                 }
 
@@ -633,14 +639,19 @@ namespace MiniExcelLibs.OpenXml
                     for (int j = 0; j < value.Columns.Count; j++)
                     {
                         var cellValue = value.Rows[i][j];
-                        WriteCell(writer, yIndex, xIndex, cellValue, columnInfo: null);
+                        if (_cellDataGeter != null)
+                            (cellValue, _) = _cellDataGeter(yIndex, xIndex, props[j], cellValue);
+                        WriteCell(writer, yIndex, xIndex, cellValue, columnInfo: props[j]);
                         xIndex++;
                     }
                     writer.Write($"</x:row>");
                     yIndex++;
                 }
+                writer.Write("</x:sheetData>");
+                if (_configuration.AutoFilter)
+                    writer.Write($"<x:autoFilter ref=\"{GetDimensionRef(maxRowIndex, maxColumnIndex)}\" />");
+                writer.WriteAndFlush("</x:worksheet>");
             }
-            writer.Write("</x:sheetData></x:worksheet>");
         }
 
         private void GenerateSheetByIDataReader(MiniExcelStreamWriter writer, IDataReader reader)
@@ -663,7 +674,8 @@ namespace MiniExcelLibs.OpenXml
                 for (var i = 0; i < reader.FieldCount; i++)
                 {
                     var columnName = reader.GetName(i);
-                    var prop = GetColumnInfosFromDynamicConfiguration(columnName);
+                    var columnType = reader.GetFieldType(i);
+                    var prop = GetColumnInfosFromDynamicConfiguration(columnName, columnType, i);
                     props.Add(prop);
                 }
                 maxColumnIndex = props.Count;
@@ -685,7 +697,9 @@ namespace MiniExcelLibs.OpenXml
                     for (int i = 0; i < fieldCount; i++)
                     {
                         var cellValue = reader.GetValue(i);
-                        WriteCell(writer, yIndex, xIndex, cellValue, columnInfo: null);
+                        if (_cellDataGeter != null)
+                            (cellValue, _) = _cellDataGeter(yIndex, xIndex, props[i], cellValue);
+                        WriteCell(writer, yIndex, xIndex, cellValue, columnInfo: props[i]);
                         xIndex++;
                     }
                     writer.Write($"</x:row>");
@@ -707,12 +721,21 @@ namespace MiniExcelLibs.OpenXml
             }
         }
 
-        private ExcelColumnInfo GetColumnInfosFromDynamicConfiguration(string columnName)
+        /// <summary>
+        /// 构建动态
+        /// </summary>
+        /// <param name="columnName">列字名称</param>
+        /// <param name="columnType">列类型</param>
+        /// <param name="excelColumnIndex">列索引,从0开始</param>
+        /// <returns></returns>
+        private ExcelColumnInfo GetColumnInfosFromDynamicConfiguration(string columnName, Type columnType, int excelColumnIndex)
         {
             var prop = new ExcelColumnInfo
             {
                 ExcelColumnName = columnName,
-                Key = columnName
+                Key = columnName,
+                ExcludeNullableType = Nullable.GetUnderlyingType(columnType) ?? columnType,
+                ExcelColumnIndex = excelColumnIndex,
             };
 
             if (_configuration.DynamicColumns == null || _configuration.DynamicColumns.Length <= 0)
@@ -732,7 +755,8 @@ namespace MiniExcelLibs.OpenXml
                 prop.ExcelColumnAliases = dynamicColumn.Aliases;
             if (dynamicColumn.IndexName != null)
                 prop.ExcelIndexName = dynamicColumn.IndexName;
-            prop.ExcelColumnIndex = dynamicColumn.Index;
+            if (dynamicColumn.Index >= 0)
+                prop.ExcelColumnIndex = dynamicColumn.Index;
             if (dynamicColumn.Name != null)
                 prop.ExcelColumnName = dynamicColumn.Name;
             prop.ExcelColumnWidth = dynamicColumn.Width;
