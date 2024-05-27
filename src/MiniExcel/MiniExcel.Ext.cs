@@ -20,13 +20,16 @@ namespace MiniExcelLibs
         /// <summary>
         /// 保存Excel, 并修改列数据类型
         /// </summary>
-        /// <param name="path"></param>
+        /// <param name="path">目录不存在时，字段创建</param>
         /// <param name="value"></param>
         /// <param name="printHeader"></param>
         /// <param name="sheetName"></param>
         /// <param name="configuration"></param>
         public static SaveExceleNext SaveFileAndChangeColumn(string path, object value, bool printHeader = true, string sheetName = "Sheet1", IConfiguration configuration = null, bool overwriteFile = false, CellDataGeterDelegate cellDataGeter = null)
         {
+            var dir = Path.GetDirectoryName(path);
+            if(!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
 
             using (var stream = overwriteFile ? File.Create(path) : new FileStream(path, FileMode.CreateNew))
             {

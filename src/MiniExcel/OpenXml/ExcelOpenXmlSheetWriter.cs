@@ -741,7 +741,7 @@ namespace MiniExcelLibs.OpenXml
             if (_configuration.DynamicColumns == null || _configuration.DynamicColumns.Length <= 0)
                 return prop;
 
-            var dynamicColumn = _configuration.DynamicColumns.SingleOrDefault(_ => _.Key == columnName);
+            var dynamicColumn = _configuration.DynamicColumns.SingleOrDefault(_ => _?.Key == columnName);
             if (dynamicColumn == null || dynamicColumn.Ignore)
             {
                 return prop;
