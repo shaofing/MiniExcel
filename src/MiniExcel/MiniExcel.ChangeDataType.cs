@@ -10,7 +10,7 @@ namespace MiniExcelLibs
 {
     internal class MiniExcelChangeDataType
     {
-        public static void ChangeDataType(string fileName, bool useHeader, Dictionary<int, NewColumnInfo> newColumns)
+        public static void ChangeDataType(string fileName, bool useHeader, Dictionary<int, NewColumnInfo> newColumns, Func<string, NewColumnInfo, bool, string> reWriteValue = null)
         {
 
             using (ZipArchive zip = ZipFile.Open(fileName, ZipArchiveMode.Update))
@@ -63,6 +63,7 @@ namespace MiniExcelLibs
                                 bool canWriteData = false;
                                 NewColumnInfo newColumnInfo = null;
                                 bool writeNewValue = false;
+                                bool writeValue = false;
 
                                 while (reader.Read())
                                 {
@@ -91,8 +92,9 @@ namespace MiniExcelLibs
                                         }
                                         else    //包含子元素
                                         {
-                                            writeNewValue = canWriteData && elementName == "v" && newColumnInfo != null;    //是否需要写入新的值
-                                                                                                                
+                                            writeValue = canWriteData && elementName == "v";
+                                            writeNewValue = writeNewValue && newColumnInfo != null;    //是否需要写入新的值
+
                                             writer.WriteStartElement(reader.Prefix, elementName, reader.NamespaceURI);  //写入元素起始
 
                                             bool writeTAttribute = false;
@@ -139,12 +141,19 @@ namespace MiniExcelLibs
                                     else if (reader.NodeType == XmlNodeType.Text)
                                     {
                                         var newValue = reader.Value;
-                                        if (writeNewValue)
+                                        if (writeValue)
                                         {
-                                            if (newColumnInfo.TargetDataType == CellDataType.DateTime && DateTime.TryParse(newValue, out var newTime))
-                                                newValue = newTime.ToOADate().ToString();
-                                            else if (newColumnInfo.TargetDataType == CellDataType.Number && decimal.TryParse(newValue, out var newNumber))
-                                                newValue = newNumber.ToString();
+                                            if (reWriteValue != null)
+                                            {
+                                                newValue = reWriteValue(newValue, newColumnInfo, writeNewValue);
+                                            }
+                                            else if (writeNewValue)
+                                            {
+                                                if (newColumnInfo.TargetDataType == CellDataType.DateTime && DateTime.TryParse(newValue, out var newTime))
+                                                    newValue = newTime.ToOADate().ToString();
+                                                else if (newColumnInfo.TargetDataType == CellDataType.Number && decimal.TryParse(newValue, out var newNumber))
+                                                    newValue = newNumber.ToString();
+                                            }
                                         }
                                         writer.WriteString(newValue);
                                     }
@@ -159,7 +168,7 @@ namespace MiniExcelLibs
                                                 newColumnInfo = null;
                                             //v结束时，重置isValueElement
                                             else if (reader.LocalName == "v")
-                                                writeNewValue = false;
+                                                writeNewValue = writeValue = false;
                                         }
                                     }
                                     else

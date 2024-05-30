@@ -1,4 +1,5 @@
 ﻿using MiniExcelLibs.Utils;
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -46,15 +47,20 @@ namespace MiniExcelLibs
         internal string Path { get; set; }
         internal bool PrintHeader { get; set; }
 
-        public void ChangeColumn(Dictionary<int, NewColumnInfo> newColumns)
+        public void ChangeColumn(Dictionary<int, NewColumnInfo> newColumns, Func<string, NewColumnInfo, bool, string> reWriteValue = null)
         {
-            MiniExcelChangeDataType.ChangeDataType(Path, PrintHeader, newColumns);
+            MiniExcelChangeDataType.ChangeDataType(Path, PrintHeader, newColumns, reWriteValue);
         }
     }
 
 
     public class NewColumnInfo
     {
+        /// <summary>
+        /// 字段名称
+        /// </summary>
+        public string FieldName { get; set; }
+
         /// <summary>
         /// Excel列索引, 从1开始
         /// </summary>
