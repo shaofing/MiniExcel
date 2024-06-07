@@ -21,48 +21,51 @@ namespace MiniExcelLibs.OpenXml
             switch (_value)
             {
                 case IDictionary<string, object> sheets:
-                {
-                    var sheetId = 0;
-                    _sheets.RemoveAt(0);//TODO:remove
-                    foreach (var sheet in sheets)
                     {
-                        sheetId++;
-                        var sheetInfos = GetSheetInfos(sheet.Key);
-                        var sheetDto = sheetInfos.ToDto(sheetId);
-                        _sheets.Add(sheetDto); //TODO:remove
+                        var sheetId = 0;
+                        _sheets.RemoveAt(0);//TODO:remove
+                        foreach (var sheet in sheets)
+                        {
+                            sheetId++;
+                            var sheetInfos = GetSheetInfos(sheet.Key);
+                            var sheetDto = sheetInfos.ToDto(sheetId);
+                            _sheets.Add(sheetDto); //TODO:remove
 
-                        currentSheetIndex = sheetId;
+                            currentSheetIndex = sheetId;
+                            currentSheetDto = sheetDto;
 
-                        await CreateSheetXmlAsync(sheet.Value, sheetDto.Path, cancellationToken);
+                            await CreateSheetXmlAsync(sheet.Value, sheetDto.Path, cancellationToken);
+                        }
+
+                        break;
                     }
-
-                    break;
-                }
 
                 case DataSet sheets:
-                {
-                    var sheetId = 0;
-                    _sheets.RemoveAt(0);//TODO:remove
-                    foreach (DataTable dt in sheets.Tables)
                     {
-                        sheetId++;
-                        var sheetInfos = GetSheetInfos(dt.TableName);
-                        var sheetDto = sheetInfos.ToDto(sheetId);
-                        _sheets.Add(sheetDto); //TODO:remove
+                        var sheetId = 0;
+                        _sheets.RemoveAt(0);//TODO:remove
+                        foreach (DataTable dt in sheets.Tables)
+                        {
+                            sheetId++;
+                            var sheetInfos = GetSheetInfos(dt.TableName);
+                            var sheetDto = sheetInfos.ToDto(sheetId);
+                            _sheets.Add(sheetDto); //TODO:remove
 
-                        currentSheetIndex = sheetId;
+                            currentSheetIndex = sheetId;
+                            currentSheetDto = sheetDto;
 
-                        await CreateSheetXmlAsync(dt, sheetDto.Path, cancellationToken);
+                            await CreateSheetXmlAsync(dt, sheetDto.Path, cancellationToken);
+                        }
+
+                        break;
                     }
-
-                    break;
-                }
 
                 default:
                     //Single sheet export.
                     currentSheetIndex++;
+                    currentSheetDto = _sheets[0];
 
-                    await CreateSheetXmlAsync(_value, _sheets[0].Path, cancellationToken);
+                    await CreateSheetXmlAsync(_value, currentSheetDto.Path, cancellationToken);
                     break;
             }
 
@@ -158,7 +161,7 @@ namespace MiniExcelLibs.OpenXml
                     {
                         var cellValue = reader.GetValue(i);
                         if (_cellDataGeter != null)
-                            (cellValue, _) = _cellDataGeter(yIndex, xIndex, props[i], cellValue);
+                            (cellValue, _) = _cellDataGeter(new CellIndex(yIndex, xIndex, currentSheetIndex, currentSheetDto.Name), props[i], cellValue);
                         await WriteCellAsync(writer, yIndex, xIndex, cellValue, props[i]);
                         xIndex++;
                     }
@@ -195,12 +198,12 @@ namespace MiniExcelLibs.OpenXml
             {
                 rowCount = collection.Count;
             }
-            else if (!_configuration.FastMode)
-            {
-                // The row count is only required up front when not in fastmode
-                collection = new List<object>(values.Cast<object>());
-                rowCount = collection.Count;
-            }
+            //else if (!_configuration.FastMode)
+            //{
+            //    // The row count is only required up front when not in fastmode
+            //    collection = new List<object>(values.Cast<object>());
+            //    rowCount = collection.Count;
+            //}
 
             // Get the enumerator once to ensure deferred linq execution
             var enumerator = (collection ?? values).GetEnumerator();
@@ -257,7 +260,7 @@ namespace MiniExcelLibs.OpenXml
                 dimensionWritePosition = await writer.WriteAndFlushAsync("<x:dimension ref=\"");
                 await writer.WriteAsync("                              />");
             }
-            else
+            else if (rowCount != null)
             {
                 maxRowIndex = rowCount.Value + (_printHeader && rowCount > 0 ? 1 : 0);
                 await writer.WriteAsync($@"<x:dimension ref=""{GetDimensionRef(maxRowIndex, maxColumnIndex)}""/>");
@@ -364,7 +367,7 @@ namespace MiniExcelLibs.OpenXml
                     {
                         var cellValue = value.Rows[i][j];
                         if (_cellDataGeter != null)
-                            (cellValue, _) = _cellDataGeter(yIndex, xIndex, props[j], cellValue);
+                            (cellValue, _) = _cellDataGeter(new CellIndex(yIndex, xIndex, currentSheetIndex, currentSheetDto.Name), props[j], cellValue);
                         await WriteCellAsync(writer, yIndex, xIndex, cellValue, props[j]);
                         xIndex++;
                     }
@@ -487,7 +490,7 @@ namespace MiniExcelLibs.OpenXml
                         cellValue = p.Property.GetValue(v);
                     }
                     if (_cellDataGeter != null)
-                        (cellValue, _) = _cellDataGeter(yIndex, cellIndex, p, cellValue);
+                        (cellValue, _) = _cellDataGeter(new CellIndex(yIndex, xIndex, currentSheetIndex, currentSheetDto.Name), p, cellValue);
                     await WriteCellAsync(writer, yIndex, cellIndex, cellValue, p);
 
                     cellIndex++;

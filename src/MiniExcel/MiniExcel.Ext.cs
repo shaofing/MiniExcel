@@ -8,12 +8,11 @@ namespace MiniExcelLibs
     /// <summary>
     /// 
     /// </summary>
-    /// <param name="dataRowIdx">行索引，从1开始</param>
-    /// <param name="columnIdx">列索引，从1开始</param>
+    /// <param name="cellIndex">单元格索引</param>
     /// <param name="columnInfo">列信息</param>
     /// <param name="cellValue">单元格值</param>
     /// <returns></returns>
-    public delegate (object, NewColumnInfo) CellDataGeterDelegate(int dataRowIdx,int columnIdx, ExcelColumnInfo columnInfo, object cellValue);
+    public delegate (object, NewColumnInfo) CellDataGeterDelegate(CellIndex cellIndex, ExcelColumnInfo columnInfo, object cellValue);
 
     public static partial class MiniExcel
     {
@@ -47,10 +46,42 @@ namespace MiniExcelLibs
         internal string Path { get; set; }
         internal bool PrintHeader { get; set; }
 
-        public void ChangeColumn(Dictionary<int, NewColumnInfo> newColumns, Func<string, NewColumnInfo, bool, string> reWriteValue = null)
+        public void ChangeColumn(Dictionary<string, Dictionary<int, NewColumnInfo>> newSheetColumnDic, Func<string, NewColumnInfo, bool, string> reWriteValue = null)
         {
-            MiniExcelChangeDataType.ChangeDataType(Path, PrintHeader, newColumns, reWriteValue);
+            MiniExcelChangeDataType.ChangeDataType(Path, PrintHeader, newSheetColumnDic, reWriteValue);
         }
+    }
+
+    /// <summary>
+    /// 单元格索引
+    /// </summary>
+    public class CellIndex
+    {
+        public CellIndex(int rowIndex, int columnIndex, int sheetIndex, string sheetName)
+        {
+            RowIndex = rowIndex;
+            ColumnIndex = columnIndex;
+            SheetIndex = sheetIndex;
+            SheetName = sheetName;
+        }
+
+
+        /// <summary>
+        /// 行索引，从1开始
+        /// </summary>
+        public int RowIndex { get; }
+
+        /// <summary>
+        /// 列索引，从1开始
+        /// </summary>
+        public int ColumnIndex { get; }
+
+        /// <summary>
+        /// sheet索引，从1开始
+        /// </summary>
+        public int SheetIndex { get; }
+
+        public string SheetName { get; }
     }
 
 
@@ -85,6 +116,11 @@ namespace MiniExcelLibs
         /// 提前创建好的样式索引
         /// </summary>
         internal int NewStyleIndex { get; set; } = 2;
+
+        /// <summary>
+        /// 存储临时值，不参与Excel的构造
+        /// </summary>
+        public object TempColumnValue { get; set; }
 
     }
 

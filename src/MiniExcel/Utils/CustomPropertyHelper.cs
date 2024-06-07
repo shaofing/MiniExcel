@@ -290,7 +290,7 @@
             // TODO:Dictionary value type is not fiexed
             //var _t =
             //var gt = Nullable.GetUnderlyingType(p.PropertyType);
-            var isIgnore = false;
+            var isIgnore = configuration.IgnoreColumnIfNotInDynamicColumns;
             if (configuration.DynamicColumns != null && configuration.DynamicColumns.Length > 0)
             {
                 var dynamicColumn = configuration.DynamicColumns.SingleOrDefault(_ => _.Key == key.ToString());

@@ -49,6 +49,7 @@ namespace MiniExcelLibs.OpenXml
         private readonly List<SheetDto> _sheets = new List<SheetDto>();
         private readonly List<FileDto> _files = new List<FileDto>();
         private int currentSheetIndex = 0;
+        private SheetDto currentSheetDto;
 
         private readonly CellDataGeterDelegate _cellDataGeter;
 
@@ -91,6 +92,7 @@ namespace MiniExcelLibs.OpenXml
                         _sheets.Add(sheetDto); //TODO:remove
 
                         currentSheetIndex = sheetId;
+                        currentSheetDto = sheetDto;
 
                         CreateSheetXml(sheet.Value, sheetDto.Path);
                     }
@@ -108,6 +110,7 @@ namespace MiniExcelLibs.OpenXml
                         _sheets.Add(sheetDto); //TODO:remove
 
                         currentSheetIndex = sheetId;
+                        currentSheetDto = sheetDto;
 
                         CreateSheetXml(dt, sheetDto.Path);
                     }
@@ -116,8 +119,10 @@ namespace MiniExcelLibs.OpenXml
                 {
                     //Single sheet export.
                     currentSheetIndex++;
+                    currentSheetDto = _sheets[0];
 
-                    CreateSheetXml(_value, _sheets[0].Path);
+
+                    CreateSheetXml(_value, currentSheetDto.Path);
                 }
             }
             GenerateEndXml();
@@ -143,12 +148,12 @@ namespace MiniExcelLibs.OpenXml
             {
                 rowCount = collection.Count;
             }
-            else if (!_configuration.FastMode)
-            {
-                // The row count is only required up front when not in fastmode
-                collection = new List<object>(values.Cast<object>());
-                rowCount = collection.Count;
-            }
+            //else if (!_configuration.FastMode)
+            //{
+            //    // The row count is only required up front when not in fastmode
+            //    collection = new List<object>(values.Cast<object>());
+            //    rowCount = collection.Count;
+            //}
 
             // Get the enumerator once to ensure deferred linq execution
             var enumerator = (collection ?? values).GetEnumerator();
@@ -205,7 +210,7 @@ namespace MiniExcelLibs.OpenXml
                 dimensionWritePosition = writer.WriteAndFlush("<x:dimension ref=\"");
                 writer.Write("                              />");
             }
-            else
+            else if (rowCount != null)
             {
                 maxRowIndex = rowCount.Value + (_printHeader && rowCount > 0 ? 1 : 0);
                 writer.Write($@"<x:dimension ref=""{GetDimensionRef(maxRowIndex, maxColumnIndex)}""/>");
@@ -364,7 +369,7 @@ namespace MiniExcelLibs.OpenXml
                         cellValue = columnInfo.Property.GetValue(v);
                     }
                     if (_cellDataGeter != null)
-                        (cellValue, _) = _cellDataGeter(yIndex, cellIndex, columnInfo, cellValue);
+                        (cellValue, _) = _cellDataGeter(new CellIndex(yIndex, cellIndex, currentSheetIndex, currentSheetDto.Name), columnInfo, cellValue);
 
                     WriteCell(writer, yIndex, cellIndex, cellValue, columnInfo);
 
@@ -640,7 +645,7 @@ namespace MiniExcelLibs.OpenXml
                     {
                         var cellValue = value.Rows[i][j];
                         if (_cellDataGeter != null)
-                            (cellValue, _) = _cellDataGeter(yIndex, xIndex, props[j], cellValue);
+                            (cellValue, _) = _cellDataGeter(new CellIndex(yIndex, xIndex, currentSheetIndex, currentSheetDto.Name), props[j], cellValue);
                         WriteCell(writer, yIndex, xIndex, cellValue, columnInfo: props[j]);
                         xIndex++;
                     }
@@ -676,6 +681,9 @@ namespace MiniExcelLibs.OpenXml
                     var columnName = reader.GetName(i);
                     var columnType = reader.GetFieldType(i);
                     var prop = GetColumnInfosFromDynamicConfiguration(columnName, columnType, i);
+                    if (_configuration.IgnoreColumnIfNotInDynamicColumns)
+                    {
+                    }
                     props.Add(prop);
                 }
                 maxColumnIndex = props.Count;
@@ -698,7 +706,7 @@ namespace MiniExcelLibs.OpenXml
                     {
                         var cellValue = reader.GetValue(i);
                         if (_cellDataGeter != null)
-                            (cellValue, _) = _cellDataGeter(yIndex, xIndex, props[i], cellValue);
+                            (cellValue, _) = _cellDataGeter(new CellIndex(yIndex, xIndex, currentSheetIndex, currentSheetDto.Name), props[i], cellValue);
                         WriteCell(writer, yIndex, xIndex, cellValue, columnInfo: props[i]);
                         xIndex++;
                     }
@@ -744,7 +752,10 @@ namespace MiniExcelLibs.OpenXml
             var dynamicColumn = _configuration.DynamicColumns.SingleOrDefault(_ => _?.Key == columnName);
             if (dynamicColumn == null || dynamicColumn.Ignore)
             {
-                return prop;
+                if (_configuration.IgnoreColumnIfNotInDynamicColumns)
+                    return null;
+                else
+                    return prop;
             }
 
             prop.Nullable = true;
@@ -760,7 +771,6 @@ namespace MiniExcelLibs.OpenXml
             if (dynamicColumn.Name != null)
                 prop.ExcelColumnName = dynamicColumn.Name;
             prop.ExcelColumnWidth = dynamicColumn.Width;
-
             return prop;
         }
 
