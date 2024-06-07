@@ -132,7 +132,7 @@ namespace MiniExcelLibs.OpenXml
             {
                 throw new NotImplementedException($"MiniExcel not support only {genericType.Name} value generic type");
             }
-            
+
             if (genericType == typeof(string) || genericType == typeof(DateTime) || genericType == typeof(Guid))
             {
                 throw new NotImplementedException($"MiniExcel not support only {genericType.Name} generic type");
@@ -168,7 +168,7 @@ namespace MiniExcelLibs.OpenXml
                 var description = CustomPropertyHelper.DescriptionAttr(type, value);
                 return Tuple.Create("2", "str", description ?? value.ToString());
             }
-            
+
             if (TypeHelper.IsNumericType(type))
             {
                 var dataType = _configuration.Culture == CultureInfo.InvariantCulture ? "n" : "str";
@@ -178,7 +178,7 @@ namespace MiniExcelLibs.OpenXml
 
                 return Tuple.Create("2", dataType, cellValue);
             }
-            
+
             if (type == typeof(bool))
             {
                 return Tuple.Create("2", "b", (bool)value ? "1" : "0");
@@ -244,42 +244,42 @@ namespace MiniExcelLibs.OpenXml
             {
                 return ((decimal)value).ToString(_configuration.Culture);
             }
-            
+
             if (type.IsAssignableFrom(typeof(int)))
             {
                 return ((int)value).ToString(_configuration.Culture);
             }
-            
+
             if (type.IsAssignableFrom(typeof(double)))
             {
                 return ((double)value).ToString(_configuration.Culture);
             }
-            
+
             if (type.IsAssignableFrom(typeof(long)))
             {
                 return ((long)value).ToString(_configuration.Culture);
             }
-            
+
             if (type.IsAssignableFrom(typeof(uint)))
             {
                 return ((uint)value).ToString(_configuration.Culture);
             }
-            
+
             if (type.IsAssignableFrom(typeof(ushort)))
             {
                 return ((ushort)value).ToString(_configuration.Culture);
             }
-            
+
             if (type.IsAssignableFrom(typeof(ulong)))
             {
                 return ((ulong)value).ToString(_configuration.Culture);
             }
-            
+
             if (type.IsAssignableFrom(typeof(short)))
             {
                 return ((short)value).ToString(_configuration.Culture);
             }
-            
+
             if (type.IsAssignableFrom(typeof(float)))
             {
                 return ((float)value).ToString(_configuration.Culture);
@@ -379,7 +379,7 @@ namespace MiniExcelLibs.OpenXml
                 case TableStyles.None:
                     return ExcelXml.NoneStylesXml;
                 case TableStyles.Default:
-                    return  ExcelXml.DefaultStylesXml;
+                    return string.Format(ExcelXml.DefaultStylesXml, _configuration.HeadFontColor.ToArgb().ToString("X2"), _configuration.HeadBackgroundColor.ToArgb().ToString("X2"));
                 default:
                     return string.Empty;
             }
@@ -401,7 +401,7 @@ namespace MiniExcelLibs.OpenXml
             var drawing = new StringBuilder();
 
             for (int fileIndex = 0; fileIndex < _files.Count; fileIndex++)
-            { 
+            {
                 var file = _files[fileIndex];
                 if (file.IsImage && file.SheetId == sheetIndex + 1)
                 {

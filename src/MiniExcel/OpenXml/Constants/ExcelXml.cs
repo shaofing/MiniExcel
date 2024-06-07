@@ -68,7 +68,7 @@ namespace MiniExcelLibs.OpenXml.Constants
         <x:font>
             <x:vertAlign val=""baseline"" />
             <x:sz val=""11"" />
-            <x:color rgb=""FFFFFFFF"" />
+            <x:color rgb=""{0}"" />
             <x:name val=""Calibri"" />
             <x:family val=""2"" />
         </x:font>
@@ -82,7 +82,7 @@ namespace MiniExcelLibs.OpenXml.Constants
         </x:fill>
         <x:fill>
             <x:patternFill patternType=""solid"">
-                <x:fgColor rgb=""284472C4"" />
+                <x:fgColor rgb=""{1}"" />
             </x:patternFill>
         </x:fill>
     </x:fills>
