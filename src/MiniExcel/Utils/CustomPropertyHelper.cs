@@ -10,9 +10,16 @@
     using System.Linq;
     using System.Reflection;
 
-    internal class ExcelColumnInfo
+    public class ExcelColumnInfo
     {
+        /// <summary>
+        /// 数据字段field
+        /// </summary>
         public object Key { get; set; }
+
+        /// <summary>
+        /// Excel索引,从0开始计算
+        /// </summary>
         public int? ExcelColumnIndex { get; set; }
         public string ExcelColumnName { get; set; }
         public string[] ExcelColumnAliases { get; set; }
@@ -196,6 +203,7 @@
                 var excelColumnIndex = excelColumn?.Index > -1 ? excelColumn.Index : (int?)null;
                 return new ExcelColumnInfo
                 {
+                    Key = p.Name,
                     Property = new Property(p),
                     ExcludeNullableType = excludeNullableType,
                     Nullable = gt != null,
@@ -283,7 +291,7 @@
             // TODO:Dictionary value type is not fiexed
             //var _t =
             //var gt = Nullable.GetUnderlyingType(p.PropertyType);
-            var isIgnore = false;
+            var isIgnore = configuration.IgnoreColumnIfNotInDynamicColumns;
             if (configuration.DynamicColumns != null && configuration.DynamicColumns.Length > 0)
             {
                 var dynamicColumn = configuration.DynamicColumns.SingleOrDefault(_ => _.Key == key.ToString());

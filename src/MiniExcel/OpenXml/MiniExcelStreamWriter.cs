@@ -6,13 +6,11 @@ namespace MiniExcelLibs.OpenXml
 {
     internal class MiniExcelStreamWriter : IDisposable
     {
-        private readonly Stream _stream;
         private readonly Encoding _encoding;
         private readonly StreamWriter _streamWriter;
         private bool disposedValue;
         public MiniExcelStreamWriter(Stream stream, Encoding encoding, int bufferSize)
         {
-            this._stream = stream;
             this._encoding = encoding;
             this._streamWriter = new StreamWriter(stream, this._encoding, bufferSize);
         }

@@ -82,18 +82,27 @@ namespace MiniExcelLibs.OpenXml
             return info;
         }
 
-        private ExcelColumnInfo GetColumnInfosFromDynamicConfiguration(string columnName)
+        /// <summary>
+        /// 构建动态
+        /// </summary>
+        /// <param name="columnName">列字名称</param>
+        /// <param name="columnType">列类型</param>
+        /// <param name="excelColumnIndex">列索引,从0开始</param>
+        /// <returns></returns>
+        private ExcelColumnInfo GetColumnInfosFromDynamicConfiguration(string columnName, Type columnType, int excelColumnIndex)
         {
             var prop = new ExcelColumnInfo
             {
                 ExcelColumnName = columnName,
-                Key = columnName
+                Key = columnName,
+                ExcludeNullableType = Nullable.GetUnderlyingType(columnType) ?? columnType,
+                ExcelColumnIndex = excelColumnIndex,
             };
 
             if (_configuration.DynamicColumns == null || _configuration.DynamicColumns.Length <= 0)
                 return prop;
 
-            var dynamicColumn = _configuration.DynamicColumns.SingleOrDefault(_ => _.Key == columnName);
+            var dynamicColumn = _configuration.DynamicColumns.SingleOrDefault(_ => _?.Key == columnName);
             if (dynamicColumn == null || dynamicColumn.Ignore)
             {
                 return prop;
@@ -106,25 +115,13 @@ namespace MiniExcelLibs.OpenXml
             //prop.ExcludeNullableType = item2[key]?.GetType();
 
             if (dynamicColumn.Format != null)
-            {
                 prop.ExcelFormat = dynamicColumn.Format;
-            }
-
             if (dynamicColumn.Aliases != null)
-            {
                 prop.ExcelColumnAliases = dynamicColumn.Aliases;
-            }
-
             if (dynamicColumn.IndexName != null)
-            {
                 prop.ExcelIndexName = dynamicColumn.IndexName;
-            }
-
             if (dynamicColumn.Name != null)
-            {
                 prop.ExcelColumnName = dynamicColumn.Name;
-            }
-
             return prop;
         }
 

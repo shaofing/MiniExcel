@@ -6,12 +6,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
-using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
-using static MiniExcelLibs.Utils.ImageHelper;
 
 namespace MiniExcelLibs.OpenXml
 {
@@ -27,8 +25,11 @@ namespace MiniExcelLibs.OpenXml
         private readonly List<SheetDto> _sheets = new List<SheetDto>();
         private readonly List<FileDto> _files = new List<FileDto>();
         private int currentSheetIndex = 0;
+        private SheetDto currentSheetDto;
 
-        public ExcelOpenXmlSheetWriter(Stream stream, object value, string sheetName, IConfiguration configuration, bool printHeader)
+        private readonly CellDataGeterDelegate _cellDataGeter;
+
+        public ExcelOpenXmlSheetWriter(Stream stream, object value, string sheetName, IConfiguration configuration, bool printHeader, CellDataGeterDelegate cellDataGeter = null)
         {
             this._stream = stream;
             // Why ZipArchiveMode.Update not ZipArchiveMode.Create?
@@ -40,6 +41,7 @@ namespace MiniExcelLibs.OpenXml
                 this._archive = new MiniExcelZipArchive(_stream, ZipArchiveMode.Create, true, _utf8WithBom);
             this._printHeader = printHeader;
             this._value = value;
+            _cellDataGeter = cellDataGeter;
             this._defaultSheetName = sheetName;
         }
 
@@ -57,6 +59,7 @@ namespace MiniExcelLibs.OpenXml
             {
                 _sheets.Add(sheet.Item1); //TODO:remove
                 currentSheetIndex = sheet.Item1.SheetIdx;
+                currentSheetDto = sheet.Item1;
                 CreateSheetXml(sheet.Item2, sheet.Item1.Path);
             }
 
@@ -129,7 +132,8 @@ namespace MiniExcelLibs.OpenXml
                 for (var i = 0; i < reader.FieldCount; i++)
                 {
                     var columnName = reader.GetName(i);
-                    var prop = GetColumnInfosFromDynamicConfiguration(columnName);
+                    var columnType = reader.GetFieldType(i);
+                    var prop = GetColumnInfosFromDynamicConfiguration(columnName, columnType, i);
                     props.Add(prop);
                 }
                 maxColumnIndex = props.Count;
@@ -151,6 +155,8 @@ namespace MiniExcelLibs.OpenXml
                     for (int i = 0; i < fieldCount; i++)
                     {
                         var cellValue = reader.GetValue(i);
+                        if (_cellDataGeter != null)
+                            (cellValue, _) = _cellDataGeter(new CellIndex(yIndex, xIndex, currentSheetIndex, currentSheetDto.Name), props[i], cellValue);
                         WriteCell(writer, yIndex, xIndex, cellValue, columnInfo: null);
                         xIndex++;
                     }
@@ -188,12 +194,12 @@ namespace MiniExcelLibs.OpenXml
             {
                 rowCount = collection.Count;
             }
-            else if (!_configuration.FastMode)
-            {
-                // The row count is only required up front when not in fastmode
-                collection = new List<object>(values.Cast<object>());
-                rowCount = collection.Count;
-            }
+            //else if (!_configuration.FastMode)
+            //{
+            //    // The row count is only required up front when not in fastmode
+            //    collection = new List<object>(values.Cast<object>());
+            //    rowCount = collection.Count;
+            //}
 
             // Get the enumerator once to ensure deferred linq execution
             var enumerator = (collection ?? values).GetEnumerator();
@@ -252,7 +258,7 @@ namespace MiniExcelLibs.OpenXml
                 dimensionWritePosition = writer.WriteAndFlush(WorksheetXml.StartDimension);
                 writer.Write(WorksheetXml.DimensionPlaceholder);
             }
-            else
+            else if (rowCount != null)
             {
                 maxRowIndex = rowCount.Value + (_printHeader && rowCount > 0 ? 1 : 0);
                 writer.Write(WorksheetXml.Dimension(GetDimensionRef(maxRowIndex, maxColumnIndex)));
@@ -326,7 +332,8 @@ namespace MiniExcelLibs.OpenXml
             for (var i = 0; i < value.Columns.Count; i++)
             {
                 var columnName = value.Columns[i].Caption ?? value.Columns[i].ColumnName;
-                var prop = GetColumnInfosFromDynamicConfiguration(columnName);
+                var columnType = value.Columns[i].DataType;
+                var prop = GetColumnInfosFromDynamicConfiguration(columnName, columnType, i);
                 props.Add(prop);
             }
 
@@ -356,6 +363,9 @@ namespace MiniExcelLibs.OpenXml
                 for (int j = 0; j < value.Columns.Count; j++)
                 {
                     var cellValue = value.Rows[i][j];
+                    if (_cellDataGeter != null)
+                        (cellValue, _) = _cellDataGeter(new CellIndex(yIndex, xIndex, currentSheetIndex, currentSheetDto.Name), props[j], cellValue);
+
                     WriteCell(writer, yIndex, xIndex, cellValue, columnInfo: null);
                     xIndex++;
                 }
@@ -442,6 +452,8 @@ namespace MiniExcelLibs.OpenXml
                     {
                         cellValue = columnInfo.Property.GetValue(v);
                     }
+                    if (_cellDataGeter != null)
+                        (cellValue, _) = _cellDataGeter(new CellIndex(yIndex, cellIndex, currentSheetIndex, currentSheetDto.Name), columnInfo, cellValue);
 
                     WriteCell(writer, yIndex, cellIndex, cellValue, columnInfo);
 
